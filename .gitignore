@@ -12,3 +12,4 @@ typechain/
 .openzeppelin/.session
 coverage/
 coverage.json
+bin/
