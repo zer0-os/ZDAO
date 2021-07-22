@@ -4,44 +4,48 @@ import { ethers } from "ethers"
 
 export const FacetCutAction = { Add: 0, Replace: 1, Remove: 2 }
 
-interface Selectors {
-  [position: number]: string
-  contract: ethers.Contract;
-  remove: (functionNames: string[]) => Selectors;
-  get: (functionNames: string[]) => Selectors;
-}
+type Selectors = string[];
+
+// interface InternalSelectors {
+//   [position: number]: string
+//   contract: ethers.Contract;
+//   remove: (functionNames: string[]) => Selectors;
+//   get: (functionNames: string[]) => Selectors;
+// }
+
+// type Selectors = InternalSelectors | string[];
 
 function createSelectors(functionSelectors: string[], contract: ethers.Contract): Selectors {
-  const selectors: Selectors = [] as string[] as unknown as Selectors;
-  selectors.contract = contract;
-  selectors.get = (functionNames: string[]) => {
-    const filteredSelectors = functionSelectors.filter((v) => {
-      for (const functionName of functionNames) {
-        if (v === contract.interface.getSighash(functionName)) {
-          return true
-        }
-      }
-      return false
-    })
-    return createSelectors(filteredSelectors, contract);
-  }
-  selectors.remove = (functionNames: string[]) => {
-    const filteredSelectors = functionSelectors.filter((v) => {
-      for (const functionName of functionNames) {
-        if (v === contract.interface.getSighash(functionName)) {
-          return false
-        }
-      }
-      return true
-    })
-    return createSelectors(filteredSelectors, contract);
-  }
+  //const selectors: Selectors = [] as string[] as unknown as Selectors;
+  // selectors.contract = contract;
+  // selectors.get = (functionNames: string[]) => {
+  //   const filteredSelectors = functionSelectors.filter((v) => {
+  //     for (const functionName of functionNames) {
+  //       if (v === contract.interface.getSighash(functionName)) {
+  //         return true
+  //       }
+  //     }
+  //     return false
+  //   })
+  //   return createSelectors(filteredSelectors, contract);
+  // }
+  // selectors.remove = (functionNames: string[]) => {
+  //   const filteredSelectors = functionSelectors.filter((v) => {
+  //     for (const functionName of functionNames) {
+  //       if (v === contract.interface.getSighash(functionName)) {
+  //         return false
+  //       }
+  //     }
+  //     return true
+  //   })
+  //   return createSelectors(filteredSelectors, contract);
+  // }
 
-  for (let i = 0; i < functionSelectors.length; ++i) {
-    selectors[i] = functionSelectors[i];
-  }
+  // for (let i = 0; i < functionSelectors.length; ++i) {
+  //   selectors[i] = functionSelectors[i];
+  // }
 
-  return selectors;
+  return functionSelectors;
 }
 
 // get function selectors from ABI
