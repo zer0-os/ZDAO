@@ -26,6 +26,7 @@ contract BasicVotingFacet {
   );
 
   event AbsoluteVoteProposalPassed(uint256 indexed proposalId);
+  event AbsoluteVoteProposalRejected(uint256 indexed proposalId);
 
   event ExecutedProposal(uint256 indexed proposalId, bool success);
 
@@ -86,7 +87,8 @@ contract BasicVotingFacet {
     require(block.number < proposal.createdOn + bvs.voteTime, "ZDAO: 0006");
 
     // Voting has not already passed this proposal (used only for absolute voting)
-    require(!LibBasicVoting.proposalHasPassed(proposalId), "ZDAO: 0007");
+    require(!LibBasicVoting.proposalHasPassed(proposalId), "ZDAO: 0007A");
+    require(!LibBasicVoting.proposalHasRejected(proposalId), "ZDAO: 0007B");
 
     // Cannot vote twice on a proposal
     require(!bvs.votingData[proposalId].voters[msg.sender], "ZDAO: 0008");
@@ -112,15 +114,29 @@ contract BasicVotingFacet {
       uint256 totalVotingPower = membershipToken.totalSupplyAt(
         proposal.snapshotId
       );
-      uint256 percentFor = LibBasicVoting.calculatePercent(
-        bvs.votingData[proposalId].weightFor,
-        totalVotingPower
-      );
 
-      if (percentFor > bvs.threshold) {
-        // Vote has passed
-        bvs.votingData[proposalId].hasPassed = true;
-        emit AbsoluteVoteProposalPassed(proposalId);
+      if (inFavor) {
+        uint256 percentFor = LibBasicVoting.calculatePercent(
+          bvs.votingData[proposalId].weightFor,
+          totalVotingPower
+        );
+
+        if (percentFor > bvs.threshold) {
+          // Vote has passed
+          bvs.votingData[proposalId].hasPassed = true;
+          emit AbsoluteVoteProposalPassed(proposalId);
+        }
+      } else {
+        uint256 percentAgainst = LibBasicVoting.calculatePercent(
+          bvs.votingData[proposalId].weightAgainst,
+          totalVotingPower
+        );
+
+        if (percentAgainst > ((10**18) - bvs.threshold)) {
+          // Vote has passed
+          bvs.votingData[proposalId].hasRejected = true;
+          emit AbsoluteVoteProposalRejected(proposalId);
+        }
       }
     }
   }
@@ -170,5 +186,38 @@ contract BasicVotingFacet {
 
       emit ExecutedProposal(proposalId, success);
     }
+  }
+
+  function proposalHasPassed(uint256 proposalId) public view returns (bool) {
+    // Must be a valid proposal
+    require(LibProposal.proposalExists(proposalId), "ZDAO: 0004");
+
+    LibBasicVoting.BasicVotingStorage storage bvs = LibBasicVoting
+    .basicVotingStorage();
+
+    // Absolute votes can pass early, so check if it passed
+    if (bvs.voteType == LibBasicVoting.VotingType.Absolute) {
+      return LibBasicVoting.proposalHasPassed(proposalId);
+    }
+
+    LibProposal.Proposal storage proposal = LibProposal.proposalDetails(
+      proposalId
+    );
+
+    // Relative only passes after expiration
+    if (block.number < proposal.createdOn + bvs.voteTime) {
+      return false;
+    }
+
+    LibBasicVoting.ProposalVotingData storage proposalData = bvs.votingData[
+      proposalId
+    ];
+
+    uint256 percentInFavor = LibBasicVoting.calculatePercent(
+      proposalData.weightFor,
+      proposalData.weightFor + proposalData.weightAgainst
+    );
+
+    return percentInFavor >= bvs.threshold;
   }
 }
