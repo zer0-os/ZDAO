@@ -16,7 +16,8 @@
   "include": [
     "./scripts",
     "./test",
-    "./typechain"
+    "./typechain",
+    "./lib"
   ],
   "exclude": [
     "node_modules"

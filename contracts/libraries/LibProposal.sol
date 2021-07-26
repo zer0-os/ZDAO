@@ -51,8 +51,8 @@ library LibProposal {
   }
 
   function proposalExists(uint256 proposalId) internal view returns (bool) {
-    ProposalStorage storage ps = proposalStorage();
-    return ps.nonce > proposalId;
+    ProposalStorage storage s = proposalStorage();
+    return s.proposals[proposalId].createdOn > 0;
   }
 
   function proposalDetails(uint256 proposalId)

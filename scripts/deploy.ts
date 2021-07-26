@@ -2,7 +2,7 @@
 
 import { ethers } from "hardhat";
 
-import { FacetCutAction, getSelectors } from "./libraries/diamond";
+import { FacetCutAction, getSelectors } from "../lib/diamond";
 
 async function deployDiamond() {
   const accounts = await ethers.getSigners();

@@ -15,7 +15,8 @@ library LibBasicVoting {
   struct ProposalVotingData {
     uint256 weightFor;
     uint256 weightAgainst;
-    bool hasPassed;
+    bool hasPassed; // will only be set if voting is Absolute
+    bool hasRejected; // will only be set if voting is Absolute
     mapping(address => bool) voters;
   }
 
@@ -54,6 +55,15 @@ library LibBasicVoting {
   function proposalHasPassed(uint256 proposalId) internal view returns (bool) {
     BasicVotingStorage storage s = basicVotingStorage();
     return s.votingData[proposalId].hasPassed;
+  }
+
+  function proposalHasRejected(uint256 proposalId)
+    internal
+    view
+    returns (bool)
+  {
+    BasicVotingStorage storage s = basicVotingStorage();
+    return s.votingData[proposalId].hasRejected;
   }
 
   function calculatePercent(uint256 value, uint256 total)
