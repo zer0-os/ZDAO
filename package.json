@@ -44,7 +44,7 @@
     "clean": "hardhat clean",
     "compile": "hardhat compile",
     "test": "hardhat test --show-stack-traces",
-    "coverage": "yarn run build && hardhat coverage --temp artifacts --network coverage",
+    "coverage": "yarn run build && hardhat coverage --temp artifacts",
     "fix": "yarn run fix:contracts && yarn run fix:ts",
     "fix:contracts": "prettier --write ./contracts/**/*.sol",
     "fix:ts": "eslint . --ext .ts --fix",
