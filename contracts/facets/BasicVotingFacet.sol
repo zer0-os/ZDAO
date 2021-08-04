@@ -81,7 +81,7 @@ contract BasicVotingFacet {
     require(!proposal.executed, "ZDAO: 0005");
 
     LibBasicVoting.BasicVotingStorage storage bvs = LibBasicVoting
-    .basicVotingStorage();
+      .basicVotingStorage();
 
     // Voting period must not have passed yet
     require(block.number < proposal.createdOn + bvs.voteTime, "ZDAO: 0006");
@@ -153,7 +153,7 @@ contract BasicVotingFacet {
     require(!proposal.executed, "ZDAO: 0010");
 
     LibBasicVoting.BasicVotingStorage storage bvs = LibBasicVoting
-    .basicVotingStorage();
+      .basicVotingStorage();
 
     if (bvs.voteType == LibBasicVoting.VotingType.Absolute) {
       require(LibBasicVoting.proposalHasPassed(proposalId), "ZDAO: 0011");
@@ -193,7 +193,7 @@ contract BasicVotingFacet {
     require(LibProposal.proposalExists(proposalId), "ZDAO: 0004");
 
     LibBasicVoting.BasicVotingStorage storage bvs = LibBasicVoting
-    .basicVotingStorage();
+      .basicVotingStorage();
 
     // Absolute votes can pass early, so check if it passed
     if (bvs.voteType == LibBasicVoting.VotingType.Absolute) {
