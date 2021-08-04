@@ -97,7 +97,7 @@ describe("E2E Basic Voting", () => {
 
         const proposalData = membershipToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
 
-        const tx = await basicVoting.createProposal(membershipToken.address, 0, proposalData);
+        await basicVoting.createProposal(membershipToken.address, 0, proposalData);
       });
 
       it("prevents a user without membership from voting on a proposal", async () => {
@@ -184,14 +184,12 @@ describe("E2E Basic Voting", () => {
 
         const proposalData = membershipToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
 
-        await basicVoting.createProposal(membershipToken.address, 0, proposalData);
+        const proposalId = await helpers.createProposal(basicVoting, membershipToken.address, 0, proposalData);
 
         // fast forward 11 blocks
         for (let i = 0; i < 11; ++i) {
           await hardhat.ethers.provider.send('evm_mine', []);
         }
-
-        const proposalId = 2;
 
         const tx = basicVoting.voteOnProposal(proposalId, false);
         await expect(tx).to.be.revertedWith("ZDAO: 0006")
@@ -202,9 +200,7 @@ describe("E2E Basic Voting", () => {
 
         const proposalData = membershipToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
 
-        await basicVoting.createProposal(membershipToken.address, 0, proposalData);
-
-        const proposalId = 3;
+        const proposalId = await helpers.createProposal(basicVoting, membershipToken.address, 0, proposalData);
 
         await basicVoting.voteOnProposal(proposalId, false);
         await basicVoting.connect(user2).voteOnProposal(proposalId, false);
@@ -239,14 +235,12 @@ describe("E2E Basic Voting", () => {
 
         const proposalData = membershipToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
 
-        await basicVoting.createProposal(membershipToken.address, 0, proposalData);
+        const proposalId = await helpers.createProposal(basicVoting, membershipToken.address, 0, proposalData);
 
         // fast forward 11 blocks
         for (let i = 0; i < 11; ++i) {
           await hardhat.ethers.provider.send('evm_mine', []);
         }
-
-        const proposalId = 1;
 
         const tx = basicVoting.voteOnProposal(proposalId, false);
         await expect(tx).to.be.revertedWith("ZDAO: 0006")
@@ -257,9 +251,7 @@ describe("E2E Basic Voting", () => {
 
         const proposalData = membershipToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
 
-        await basicVoting.createProposal(membershipToken.address, 0, proposalData);
-
-        const proposalId = 2;
+        const proposalId = await helpers.createProposal(basicVoting, membershipToken.address, 0, proposalData);
 
         await basicVoting.voteOnProposal(proposalId, true);
 
@@ -303,15 +295,13 @@ describe("E2E Basic Voting", () => {
         await dummyToken.transferOwnership(zDAO.address);
       });
 
-      it("allows a passed proposal to execute successfully", async () => {
+      it("allows a passed proposal to execute", async () => {
         const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
 
         const mintAmount = ethers.utils.parseEther("10");
         const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, mintAmount]);
 
-        await basicVoting.createProposal(dummyToken.address, 0, proposalData);
-
-        const proposalId = 1;
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
 
         await basicVoting.connect(user1).voteOnProposal(proposalId, true);
         await basicVoting.connect(user2).voteOnProposal(proposalId, true);
@@ -329,6 +319,124 @@ describe("E2E Basic Voting", () => {
         expect(await dummyToken.balanceOf(user1.address)).to.eq(mintAmount);
       });
 
+      it("allows a passed proposal to execute early with absolute voting", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user2.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, true);
+        // proposal should have passed by now
+
+        const tx = await basicVoting.connect(user1).executeProposal(proposalId);
+
+        expect(tx).to.emit(basicVoting, "ExecutedProposal").withArgs(proposalId, true);
+
+        expect(await dummyToken.balanceOf(user2.address)).to.eq(mintAmount);
+      });
+
+      it("prevents a proposal from being executed twice", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const proposalId = 2;
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0010")
+      });
+
+      it("prevents a proposal from executing if it hasn't passed yet", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user3.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0011")
+      });
+
+      it("prevents a proposal from executing if nobody voted on it", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user3.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        // fast forward 11 blocks
+        for (let i = 0; i < 11; ++i) {
+          await hardhat.ethers.provider.send('evm_mine', []);
+        }
+        // proposal should have passed by now
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0011")
+      });
+
+      it("prevents a non-existent proposal from executing", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const proposalId = 99;
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0009")
+      });
+
+      it("executes a proposal even if the execution fails", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const otherToken = await helpers.deployMockToken(creator);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = otherToken.interface.encodeFunctionData("mint", [user2.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, otherToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, true);
+        // proposal should have passed by now
+
+        const tx = await basicVoting.connect(user1).executeProposal(proposalId);
+
+        expect(tx).to.emit(basicVoting, "ExecutedProposal").withArgs(proposalId, false);
+      });
+
+      it("prevents a second execution on a proposal even if the first execution fails", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+        const proposalId = 5;
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0010");
+      });
+
+      it("prevents a proposal from executing if it failed", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user3.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, false);
+        await basicVoting.connect(user3).voteOnProposal(proposalId, false);
+        // proposal should have failed by now
+
+        let tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0011")
+      });
 
     });
 
@@ -352,6 +460,91 @@ describe("E2E Basic Voting", () => {
         dummyToken = await helpers.deployMockToken(creator);
         await dummyToken.transferOwnership(zDAO.address);
       });
+
+      it("allows a passed proposal to execute", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, true);
+
+        // fast forward 11 blocks
+        for (let i = 0; i < 11; ++i) {
+          await hardhat.ethers.provider.send('evm_mine', []);
+        }
+        // proposal should have passed by now
+
+        const tx = await basicVoting.connect(user1).executeProposal(proposalId);
+
+        expect(tx).to.emit(basicVoting, "ExecutedProposal").withArgs(proposalId, true);
+
+        expect(await dummyToken.balanceOf(user1.address)).to.eq(mintAmount);
+      });
+
+      it("prevents a passing proposal from executing early", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, true);
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0012");
+      });
+
+      it("prevents a failing proposal from executing early", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, false);
+        await basicVoting.connect(user3).voteOnProposal(proposalId, false);
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0012");
+      });
+
+      it("prevents a failed proposal from executing", async () => {
+        const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+        const mintAmount = ethers.utils.parseEther("10");
+        const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, mintAmount]);
+
+        const proposalId = await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+
+        await basicVoting.connect(user1).voteOnProposal(proposalId, true);
+        await basicVoting.connect(user2).voteOnProposal(proposalId, false);
+        await basicVoting.connect(user3).voteOnProposal(proposalId, false);
+
+        // fast forward 11 blocks
+        for (let i = 0; i < 11; ++i) {
+          await hardhat.ethers.provider.send('evm_mine', []);
+        }
+        // proposal should have failed by now
+
+        const tx = basicVoting.connect(user1).executeProposal(proposalId);
+
+        await expect(tx).to.be.revertedWith("ZDAO: 0013");
+
+        await helpers.createProposal(basicVoting.connect(user1), dummyToken.address, 0, proposalData);
+      });
+
+
+
     });
 
   });
