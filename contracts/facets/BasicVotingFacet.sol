@@ -29,6 +29,7 @@ contract BasicVotingFacet {
   event AbsoluteVoteProposalRejected(uint256 indexed proposalId);
 
   event ExecutedProposal(uint256 indexed proposalId, bool success);
+  event ProposalExecutionFailure(uint256 indexed proposalId, string reason);
 
   function createProposal(
     address to,
@@ -176,8 +177,10 @@ contract BasicVotingFacet {
     {
       proposal.executed = true;
 
+      bytes memory res;
+
       // Execute the proposal
-      success = LibExecute.execute(
+      (success, res) = LibExecute.execute(
         proposal.to,
         proposal.value,
         proposal.data,
@@ -185,6 +188,10 @@ contract BasicVotingFacet {
       );
 
       emit ExecutedProposal(proposalId, success);
+
+      if (!success) {
+        emit ProposalExecutionFailure(proposalId, LibExecute.getRevertMsg(res));
+      }
     }
   }
 

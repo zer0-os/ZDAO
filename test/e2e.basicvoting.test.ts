@@ -5,7 +5,7 @@ import { solidity } from "ethereum-waffle";
 import { ethers } from "ethers";
 import * as hardhat from "hardhat";
 import * as helpers from "../lib";
-import { BasicVotingFacet__factory, Diamond, MockZeroToken } from "../typechain";
+import { BasicVotingFacet__factory, Diamond, ExecuteFacet__factory, MockZeroToken } from "../typechain";
 
 chai.use(solidity);
 const { expect } = chai;
@@ -412,6 +412,7 @@ describe("E2E Basic Voting", () => {
         const tx = await basicVoting.connect(user1).executeProposal(proposalId);
 
         expect(tx).to.emit(basicVoting, "ExecutedProposal").withArgs(proposalId, false);
+        expect(tx).to.emit(basicVoting, "ProposalExecutionFailure").withArgs(proposalId, "ERC20: transfer amount exceeds balance");
       });
 
       it("prevents a second execution on a proposal even if the first execution fails", async () => {
@@ -549,10 +550,76 @@ describe("E2E Basic Voting", () => {
         await helpers.createProposal(basicVoting.connect(user1), dummyToken.address, 0, proposalData);
       });
 
-
-
     });
 
+  });
+
+  describe("Safelist", () => {
+    let membershipToken: MockZeroToken;
+    let zDAO: Diamond;
+    let dummyToken: MockZeroToken;
+    let lastProposalId: number = 0;
+
+    before(async () => {
+      const mock = await helpers.deployMockZDAODiamond(creator);
+      membershipToken = mock.membershipToken;
+      zDAO = mock.zDAO;
+
+
+      dummyToken = await helpers.deployMockToken(creator);
+      await dummyToken.transferOwnership(zDAO.address);
+
+      await helpers.cutDefaultFacets(zDAO.address, creator);
+      await helpers.cutBasicVotingFacet(zDAO.address, creator, membershipToken.address, helpers.VotingType.Absolute, 10, 0.5);
+      await helpers.cutExecuteFacet(zDAO.address, creator, [membershipToken.address]);
+
+      await membershipToken.mintBypass(user1.address, ethers.utils.parseEther("1"));
+      await membershipToken.mintBypass(user2.address, ethers.utils.parseEther("1"));
+      await membershipToken.mintBypass(user3.address, ethers.utils.parseEther("1"));
+    });
+
+    it("prevents a user from creating a proposal to execute on a non-safe listed contract", async () => {
+      const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user3);
+
+      const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
+
+      await expect(helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData)).to.be.revertedWith("ZDAO: 0015");
+    });
+
+    it("allows a user to create a proposal to safelist a new contract", async () => {
+      const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user3);
+      const executeFacet = await ExecuteFacet__factory.connect(zDAO.address, user1);
+
+      const proposalData = executeFacet.interface.encodeFunctionData("safelistContract", [dummyToken.address, true]);
+
+      // zDAO.address === executeFacet.address
+      lastProposalId = await helpers.createProposal(basicVoting, executeFacet.address, 0, proposalData);
+
+      expect(lastProposalId).to.not.eq(0);
+    });
+
+    it("safelists a new contract when a safelist proposal passes", async () => {
+      const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
+
+      await basicVoting.connect(user1).voteOnProposal(lastProposalId, true);
+      await basicVoting.connect(user2).voteOnProposal(lastProposalId, true);
+      // should be passed
+
+      // execute proposal to safelist contract
+      const tx = await basicVoting.connect(user1).executeProposal(lastProposalId);
+
+      const executeFacet = await ExecuteFacet__factory.connect(zDAO.address, user1);
+
+      expect(await executeFacet.isContractSafelisted(dummyToken.address)).is.true;
+    });
+
+    it("allows a user to create a proposal on a newly safelisted contract", async () => {
+      const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user3);
+
+      const proposalData = dummyToken.interface.encodeFunctionData("mint", [user1.address, ethers.utils.parseEther("10")]);
+
+      await helpers.createProposal(basicVoting, dummyToken.address, 0, proposalData);
+    });
   });
 
 });
