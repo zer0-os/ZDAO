@@ -1,4 +1,4 @@
-import { BasicVotingFacet, Diamond, DiamondCutFacet__factory, DiamondInit__factory, Diamond__factory, MockZeroToken, MockZeroToken__factory, ZDAOBasicInit__factory } from "../typechain";
+import { BasicVotingFacet, Diamond, DiamondCutFacet__factory, DiamondInit__factory, Diamond__factory, MockZeroToken, MockZeroToken__factory, ZDAOBasicInit__factory, ZDAOSafelistInit__factory } from "../typechain";
 
 import * as hardhat from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -99,6 +99,23 @@ export const cutBasicVotingFacet = async (diamondAddress: string, cutter: Signer
   const diamondCut = await DiamondCutFacet__factory.connect(diamondAddress, cutter);
   await diamondCut.diamondCut(cuts, initializer.address, initFunctionCall);
 }
+
+export const cutExecuteFacet = async (diamondAddress: string, cutter: SignerWithAddress, defaultSafelist: string[]) => {
+  // deploy diamond init
+  const initFactory = new ZDAOSafelistInit__factory(cutter);
+  const initializer = await initFactory.deploy();
+
+  // deploy basic voting facet
+  const cuts = await prepareFacets(["ExecuteFacet"]);
+
+  const initFunctionCall = initializer.interface.encodeFunctionData("init", [
+    defaultSafelist
+  ]);
+
+  const diamondCut = await DiamondCutFacet__factory.connect(diamondAddress, cutter);
+  await diamondCut.diamondCut(cuts, initializer.address, initFunctionCall);
+}
+
 
 export const createProposal = async (voting: BasicVotingFacet, target: string, value: ethers.BigNumberish, data: ethers.utils.BytesLike) => {
   const tx = await voting.createProposal(target, value, data);

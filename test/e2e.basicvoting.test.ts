@@ -5,8 +5,7 @@ import { solidity } from "ethereum-waffle";
 import { ethers } from "ethers";
 import * as hardhat from "hardhat";
 import * as helpers from "../lib";
-import { BasicVotingFacet__factory, Diamond, DiamondCutFacet__factory, DiamondInit__factory, Diamond__factory, MockZeroToken, ZDAOBasicInit__factory } from "../typechain";
-import { MockZeroToken__factory } from "../typechain/factories/MockZeroToken__factory";
+import { BasicVotingFacet__factory, Diamond, MockZeroToken } from "../typechain";
 
 chai.use(solidity);
 const { expect } = chai;
@@ -42,6 +41,7 @@ describe("E2E Basic Voting", () => {
 
       await helpers.cutDefaultFacets(zDAO.address, creator);
       await helpers.cutBasicVotingFacet(zDAO.address, creator, membershipToken.address, helpers.VotingType.Absolute, 10, 0.3);
+      await helpers.cutExecuteFacet(zDAO.address, creator, [membershipToken.address]);
 
       await membershipToken.mintBypass(user1.address, ethers.utils.parseEther("2"));
     });
@@ -85,6 +85,7 @@ describe("E2E Basic Voting", () => {
 
         await helpers.cutDefaultFacets(zDAO.address, creator);
         await helpers.cutBasicVotingFacet(zDAO.address, creator, membershipToken.address, helpers.VotingType.Absolute, 10, 0.5);
+        await helpers.cutExecuteFacet(zDAO.address, creator, [membershipToken.address]);
 
         await membershipToken.mintBypass(user1.address, ethers.utils.parseEther("1"));
         await membershipToken.mintBypass(user2.address, ethers.utils.parseEther("1"));
@@ -224,6 +225,7 @@ describe("E2E Basic Voting", () => {
 
         await helpers.cutDefaultFacets(zDAO.address, creator);
         await helpers.cutBasicVotingFacet(zDAO.address, creator, membershipToken.address, helpers.VotingType.Relative, 10, 0.5);
+        await helpers.cutExecuteFacet(zDAO.address, creator, [membershipToken.address]);
 
         await membershipToken.mintBypass(user1.address, ethers.utils.parseEther("1"));
         await membershipToken.mintBypass(user2.address, ethers.utils.parseEther("1"));
@@ -284,15 +286,18 @@ describe("E2E Basic Voting", () => {
         membershipToken = mock.membershipToken;
         zDAO = mock.zDAO;
 
+
+        dummyToken = await helpers.deployMockToken(creator);
+        await dummyToken.transferOwnership(zDAO.address);
+
         await helpers.cutDefaultFacets(zDAO.address, creator);
         await helpers.cutBasicVotingFacet(zDAO.address, creator, membershipToken.address, helpers.VotingType.Absolute, 10, 0.5);
+        await helpers.cutExecuteFacet(zDAO.address, creator, [membershipToken.address, dummyToken.address]);
 
         await membershipToken.mintBypass(user1.address, ethers.utils.parseEther("1"));
         await membershipToken.mintBypass(user2.address, ethers.utils.parseEther("1"));
         await membershipToken.mintBypass(user3.address, ethers.utils.parseEther("1"));
 
-        dummyToken = await helpers.deployMockToken(creator);
-        await dummyToken.transferOwnership(zDAO.address);
       });
 
       it("allows a passed proposal to execute", async () => {
@@ -395,12 +400,10 @@ describe("E2E Basic Voting", () => {
       it("executes a proposal even if the execution fails", async () => {
         const basicVoting = await BasicVotingFacet__factory.connect(zDAO.address, user1);
 
-        const otherToken = await helpers.deployMockToken(creator);
+        const transferAmount = ethers.utils.parseEther("10000");
+        const proposalData = membershipToken.interface.encodeFunctionData("transfer", [user2.address, transferAmount]);
 
-        const mintAmount = ethers.utils.parseEther("10");
-        const proposalData = otherToken.interface.encodeFunctionData("mint", [user2.address, mintAmount]);
-
-        const proposalId = await helpers.createProposal(basicVoting, otherToken.address, 0, proposalData);
+        const proposalId = await helpers.createProposal(basicVoting, membershipToken.address, 0, proposalData);
 
         await basicVoting.connect(user1).voteOnProposal(proposalId, true);
         await basicVoting.connect(user2).voteOnProposal(proposalId, true);
@@ -450,15 +453,18 @@ describe("E2E Basic Voting", () => {
         membershipToken = mock.membershipToken;
         zDAO = mock.zDAO;
 
+
+        dummyToken = await helpers.deployMockToken(creator);
+        await dummyToken.transferOwnership(zDAO.address);
+
         await helpers.cutDefaultFacets(zDAO.address, creator);
         await helpers.cutBasicVotingFacet(zDAO.address, creator, membershipToken.address, helpers.VotingType.Relative, 10, 0.5);
+        await helpers.cutExecuteFacet(zDAO.address, creator, [membershipToken.address, dummyToken.address]);
 
         await membershipToken.mintBypass(user1.address, ethers.utils.parseEther("1"));
         await membershipToken.mintBypass(user2.address, ethers.utils.parseEther("1"));
         await membershipToken.mintBypass(user3.address, ethers.utils.parseEther("1"));
 
-        dummyToken = await helpers.deployMockToken(creator);
-        await dummyToken.transferOwnership(zDAO.address);
       });
 
       it("allows a passed proposal to execute", async () => {

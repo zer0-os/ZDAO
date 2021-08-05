@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import {LibExecute} from "./LibExecute.sol";
+
 library LibProposal {
   bytes32 constant PROPOSAL_STORAGE_POSITION =
     keccak256("zer0.zdao.proposal.storage.v0");
@@ -36,6 +38,8 @@ library LibProposal {
     bytes calldata data,
     uint256 snapshotId
   ) internal returns (uint256) {
+    require(LibExecute.isContractSafelisted(to), "ZDAO: 0015");
+
     ProposalStorage storage s = proposalStorage();
 
     s.proposals[++s.nonce] = Proposal({
