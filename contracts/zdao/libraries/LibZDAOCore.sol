@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {IZeroToken} from "../interfaces/IZeroToken.sol";
+import {IZeroToken} from "../../common/interfaces/IZeroToken.sol";
 
 library LibZDAOCore {
   bytes32 constant ZDAO_CORE_STORAGE_POSITION =

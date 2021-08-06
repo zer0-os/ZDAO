@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IZeroToken} from "../interfaces/IZeroToken.sol";
+import {IZeroToken} from "../../common/interfaces/IZeroToken.sol";
 import {LibZDAOCore} from "../libraries/LibZDAOCore.sol";
 import {LibBasicVoting} from "../libraries/LibBasicVoting.sol";
 
@@ -16,7 +16,7 @@ contract ZDAOBasicInit {
     zcs.membershipToken = IZeroToken(membershipToken);
 
     LibBasicVoting.BasicVotingStorage storage bvs = LibBasicVoting
-    .basicVotingStorage();
+      .basicVotingStorage();
     bvs.voteType = voteType;
     bvs.voteTime = voteTime;
     bvs.threshold = threshold;

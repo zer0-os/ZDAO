@@ -5,7 +5,7 @@ import {LibBasicVoting} from "../libraries/LibBasicVoting.sol";
 import {LibProposal} from "../libraries/LibProposal.sol";
 import {LibZDAOCore} from "../libraries/LibZDAOCore.sol";
 import {LibExecute} from "../libraries/LibExecute.sol";
-import {IZeroToken} from "../interfaces/IZeroToken.sol";
+import {IZeroToken} from "../../common/interfaces/IZeroToken.sol";
 
 contract BasicVotingFacet {
   event ProposalCreated(
