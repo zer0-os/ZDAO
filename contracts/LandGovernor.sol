@@ -9,8 +9,7 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 
 /**
- * @title LandGovernor
- * @dev Governance contract using LandToken (ERC721CVotes) for voting.
+ * @title zDAO
  */
 contract LandGovernor is
     Governor,

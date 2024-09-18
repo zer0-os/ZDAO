@@ -13,5 +13,5 @@ contract ERC20Token is Ownable, ERC20{
     constructor(string memory name, string memory symbol) ERC20(name,symbol){}
     function mint(address to, uint amount) public onlyOwner(){
         _mint(to, amount);
-    } 
+    }
 }
