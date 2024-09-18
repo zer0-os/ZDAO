@@ -9,9 +9,9 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 
 /**
- * @title zDAO
+ * @title ZDAO
  */
-contract LandGovernor is
+contract ZDAO is
     Governor,
     GovernorSettings,
     GovernorCountingSimple,
@@ -23,7 +23,7 @@ contract LandGovernor is
         address _token,
         TimelockController _timelock
     )
-        Governor("LandGovernor")
+        Governor("ZDAO")
         GovernorSettings(
             1,        // Voting delay: 1 block
             45818,    // Voting period: ~1 week in blocks (assuming 13s blocks)

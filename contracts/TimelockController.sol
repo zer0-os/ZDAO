@@ -16,7 +16,7 @@ contract MyGovernance {
         uint256 minDelay,               // Minimum delay before executing
         address[] memory proposers,      // List of addresses that can propose
         address[] memory executors,      // List of addresses that can execute
-        address admin                    // Admin address with admin role
+        address admin                   // Admin address with admin role
     ) {
         // Initialize the TimelockController
         timelock = new TimelockController(minDelay, proposers, executors, admin);
