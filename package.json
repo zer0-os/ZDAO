@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.5",
+    "@openzeppelin/merkle-tree": "^1.0.7",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
+    "fs": "^0.0.1-security",
+    "hardhat": "^2.22.3",
+    "hardhat-waffle": "^0.0.1-security",
+    "plotly": "^1.0.6",
+    "plotly.js": "^2.33.0",
+    "plotly.js-dist": "^2.33.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^4.8.3"
+  }
+}
