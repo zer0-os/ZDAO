@@ -20,18 +20,23 @@ contract ZDAO is
     GovernorVotesQuorumFraction
 {
     constructor(
-        address _token,
-        TimelockController _timelock
+        IVotes token,
+        TimelockController timelock,
+        string memory governorName,
+        uint delay_,
+        uint votingPeriod_,
+        uint proposalThreshold_,
+        uint quorum_
     )
         Governor("ZDAO")
         GovernorSettings(
-            1,        // Voting delay: 1 block
-            45818,    // Voting period: ~1 week in blocks (assuming 13s blocks)
-            1         // Proposal threshold: 1 token
+            delay_,
+            votingPeriod_,
+            proposalThreshold_
         )
-        GovernorVotes(IVotes(address(_token)))
-        GovernorTimelockControl(_timelock)
-        GovernorVotesQuorumFraction(100)
+        GovernorVotes(token)
+        GovernorTimelockControl(timelock)
+        GovernorVotesQuorumFraction(quorum_)
     {}
     
     function votingDelay()
