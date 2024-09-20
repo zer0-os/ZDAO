@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import { Governor } from "@openzeppelin/contracts/governance/Governor.sol";
 import { GovernorSettings } from "@openzeppelin/contracts/governance/extensions/GovernorSettings.sol";
@@ -13,7 +13,7 @@ import { GovernorVotesQuorumFraction } from "@openzeppelin/contracts/governance/
  * @notice A customizable governance contract based on OpenZeppelin's Governor contracts.
  * @dev Extends OpenZeppelin's Governor contracts with various extensions for governance settings, voting, timelock control, and quorum fraction.
  * See OpenZeppelin documentation: https://docs.openzeppelin.com/contracts/4.x/api/governance
- * @custom:security-contact security@example.com
+ * @custom:security-contact admin@zer0.tech
  */
 contract ZDAO is
     Governor,
