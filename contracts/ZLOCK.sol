@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/governance/TimelockController.sol";
 
-contract MyGovernance {
+contract ZLOCK {
     // Instance of the TimelockController contract
     TimelockController public timelock;
 

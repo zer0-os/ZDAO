@@ -28,7 +28,7 @@ contract ZDAO is
         uint proposalThreshold_,
         uint quorum_
     )
-        Governor("ZDAO")
+        Governor(governorName)
         GovernorSettings(
             delay_,
             votingPeriod_,
