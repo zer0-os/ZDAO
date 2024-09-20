@@ -31,7 +31,7 @@ contract ZDAO is
      * @param delay_ The delay before voting starts (in blocks).
      * @param votingPeriod_ The duration of the voting period (in blocks).
      * @param proposalThreshold_ The minimum number of votes required to create a proposal.
-     * @param quorum_ The quorum fraction required for a proposal to pass.
+     * @param quorumPercentage_ The quorum fraction required for a proposal to pass.
      * @dev Initializes the governor with settings and extensions.
      * See OpenZeppelin Governor documentation: https://docs.openzeppelin.com/contracts/4.x/api/governance
      */
@@ -42,7 +42,7 @@ contract ZDAO is
         uint256 delay_,
         uint256 votingPeriod_,
         uint256 proposalThreshold_,
-        uint256 quorum_
+        uint256 quorumPercentage_
     )
         Governor(governorName)
         GovernorVotes(token)
@@ -52,7 +52,7 @@ contract ZDAO is
             votingPeriod_,
             proposalThreshold_
         )
-        GovernorVotesQuorumFraction(quorum_)
+        GovernorVotesQuorumFraction(quorumPercentage_)
     {}
 
     /**
