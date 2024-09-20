@@ -10,7 +10,6 @@ import {GovernorVotesQuorumFraction } from "@openzeppelin/contracts/governance/e
 
 /**
  * @title ZDAO
- * 
  */
 contract ZDAO is
     Governor,
@@ -30,13 +29,13 @@ contract ZDAO is
         uint quorum_
     )
         Governor(governorName)
+        GovernorVotes(token)
+        GovernorTimelockControl(timelock)
         GovernorSettings(
             delay_,
             votingPeriod_,
             proposalThreshold_
         )
-        GovernorVotes(token)
-        GovernorTimelockControl(timelock)
         GovernorVotesQuorumFraction(quorum_)
     {}
 

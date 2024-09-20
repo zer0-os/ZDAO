@@ -65,9 +65,9 @@ describe("ZDAO", function () {
     const quorum = 0;  // 0% quorum
 
     const zDAO = await zDAOFactory.deploy(
+      "ZDAO",  // Governor name
       nftAddr,  // IVotes token (NFT for this test)
       timelockAddr,  // Timelock controller
-      "ZDAO",  // Governor name
       delay,  // Voting delay
       votingPeriod,  // Voting period
       proposalThreshold,  // Proposal threshold
@@ -175,9 +175,9 @@ describe("ZDAO", function () {
       const quorum = 0;  // 0% quorum
 
       const zDAO = await zDAOFactory.deploy(
+        "ZDAO",  // Governor name
         erc20Addr,  // Use ERC20 token for governance
         timelockAddr,  // Timelock controller
-        "ZDAO",  // Governor name
         delay,  // Voting delay
         votingPeriod,  // Voting period
         proposalThreshold,  // Proposal threshold
@@ -201,8 +201,7 @@ describe("ZDAO", function () {
 
       // Check the voting power of the owner at the correct block
       const blockNumber = await ethers.provider.getBlockNumber();
-      const votingPower = await zDAO.getVotes(ownerAddr, blockNumber - 1);  // Use the previous block number
-      console.log("Owner's voting power (ERC20): ", votingPower.toString());
+      const votingPower = await zDAO.getVotes(ownerAddr, blockNumber - 1);
 
       // Ensure voting power is sufficient
       expect(votingPower).to.be.gte(1);  // Assuming the proposal threshold is 1
