@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./ZDAO.sol";
+import "../ZDAO.sol";
 import "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
 /**
@@ -37,7 +37,8 @@ contract ZDAOFactory {
         uint256 votingDelay,
         uint256 votingPeriod,
         uint256 proposalThreshold,
-        uint256 quorumPercentage
+        uint256 quorumPercentage,
+        uint64 voteExtension
     ) external returns (address zdaoAddress) {
         ZDAO zdao = new ZDAO(
             governorName,
@@ -46,7 +47,8 @@ contract ZDAOFactory {
             votingDelay,
             votingPeriod,
             proposalThreshold,
-            quorumPercentage
+            quorumPercentage,
+            voteExtension
         );
 
         zDAOs.push(address(zdao));

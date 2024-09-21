@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { Governor } from "@openzeppelin/contracts/governance/Governor.sol";
+import { Governor, IGovernor } from "@openzeppelin/contracts/governance/Governor.sol";
 import { GovernorSettings } from "@openzeppelin/contracts/governance/extensions/GovernorSettings.sol";
 import { GovernorCountingSimple } from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import { GovernorVotes, IVotes } from "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import { GovernorTimelockControl, TimelockController } from "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
 import { GovernorVotesQuorumFraction } from "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
+import { GovernorPreventLateQuorum } from "@openzeppelin/contracts/governance/extensions/GovernorPreventLateQuorum.sol";
 
 /**
- * @title ZDAO Governance Contract
+ * @title ZDAO
  * @notice A customizable governance contract based on OpenZeppelin's Governor contracts.
  * @dev Extends OpenZeppelin's Governor contracts with various extensions for governance settings, voting, timelock control, and quorum fraction.
  * See OpenZeppelin documentation: https://docs.openzeppelin.com/contracts/4.x/api/governance
@@ -21,7 +22,8 @@ contract ZDAO is
     GovernorCountingSimple,
     GovernorVotes,
     GovernorTimelockControl,
-    GovernorVotesQuorumFraction
+    GovernorVotesQuorumFraction,
+    GovernorPreventLateQuorum
 {
     /**
      * @notice Creates a new ZDAO governance contract.
@@ -42,7 +44,8 @@ contract ZDAO is
         uint256 delay_,
         uint256 votingPeriod_,
         uint256 proposalThreshold_,
-        uint256 quorumPercentage_
+        uint256 quorumPercentage_,
+        uint64 voteExtension_
     )
         Governor(governorName)
         GovernorVotes(token)
@@ -53,6 +56,7 @@ contract ZDAO is
             proposalThreshold_
         )
         GovernorVotesQuorumFraction(quorumPercentage_)
+        GovernorPreventLateQuorum(voteExtension_)
     {}
 
     /**
@@ -152,6 +156,46 @@ contract ZDAO is
     {
         return super._executor();
     }
+
+     /**
+     * @notice Returns the proposal deadline in blocks.
+     * @param proposalId The ID of the proposal.
+     * @return The block number when voting ends.
+     * @dev Overrides the function from Governor and GovernorPreventLateQuorum.
+     */
+    function proposalDeadline(uint256 proposalId)
+        public
+        view
+        override(Governor, IGovernor, GovernorPreventLateQuorum)
+        returns (uint256)
+    {
+        return super.proposalDeadline(proposalId);
+    }
+
+    /**
+     * @dev Casts a vote for a proposal.
+     * @param proposalId The ID of the proposal.
+     * @param account The address of the voter.
+     * @param support The support value (0=against, 1=for, 2=abstain).
+     * @param reason The reason for the vote.
+     * @param params Additional parameters.
+     * @return The number of votes cast.
+     * @dev Overrides the function from Governor and GovernorPreventLateQuorum.
+     */
+    function _castVote(
+        uint256 proposalId,
+        address account,
+        uint8 support,
+        string memory reason,
+        bytes memory params
+    )
+        internal
+        override(Governor, GovernorPreventLateQuorum)
+        returns (uint256)
+    {
+        return super._castVote(proposalId, account, support, reason, params);
+    }
+
 
     /**
      * @notice Checks if a given interface is supported.

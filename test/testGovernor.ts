@@ -63,6 +63,7 @@ describe("ZDAO", function () {
     const votingPeriod = 5;  // Reduced voting period for testing
     const proposalThreshold = 1;  // Proposal threshold: 1 token
     const quorum = 0;  // 0% quorum
+    const voteExtension = 2;
 
     const zDAO = await zDAOFactory.deploy(
       "ZDAO",  // Governor name
@@ -71,7 +72,8 @@ describe("ZDAO", function () {
       delay,  // Voting delay
       votingPeriod,  // Voting period
       proposalThreshold,  // Proposal threshold
-      quorum  // Quorum percentage
+      quorum,  // Quorum percentage
+      voteExtension //Prevents late quorum
     );
     const zDAOAddr = await zDAO.getAddress();
 
@@ -173,6 +175,7 @@ describe("ZDAO", function () {
       const votingPeriod = 5;  // Reduced voting period for testing
       const proposalThreshold = 1;  // Proposal threshold
       const quorum = 0;  // 0% quorum
+      const voteExtension = 2;
 
       const zDAO = await zDAOFactory.deploy(
         "ZDAO",  // Governor name
@@ -181,7 +184,8 @@ describe("ZDAO", function () {
         delay,  // Voting delay
         votingPeriod,  // Voting period
         proposalThreshold,  // Proposal threshold
-        quorum  // Quorum percentage
+        quorum,  // Quorum percentage
+        voteExtension
       );
       const zDAOAddr = await zDAO.getAddress();
 
