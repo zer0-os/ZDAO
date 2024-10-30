@@ -3,16 +3,15 @@ import {
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { mineBlocks } from "./helpers/commonFunctions";
 
-// Helper function to mine a specific number of blocks
-async function mineBlocks(numberOfBlocks: number) {
-  for (let i = 0; i < numberOfBlocks; i++) {
-    await ethers.provider.send("evm_mine", []);
-  }
-}
 
 describe("ZDAO", function () {
-  async function deployZDAOFixture() {
+  const contractName = "ZeroVoting721";
+  const contractSymbol = "ZNFT";
+  const contractVersion = "1.0";
+
+  async function deployZDAOFixture () {
     const [owner, signer1, signer2] = await ethers.getSigners();
     const ownerAddr = await owner.getAddress();
     const addr1 = await signer1.getAddress();
@@ -20,7 +19,11 @@ describe("ZDAO", function () {
 
     // Deploy the NFT contract
     const nftFactory = await ethers.getContractFactory("MockERC721Votes");
-    const nft = await nftFactory.deploy();
+    const nft = await nftFactory.deploy(
+      contractName,
+      contractSymbol,
+      contractVersion
+    );
     const nftAddr = await nft.getAddress();
 
     // Deploy the ERC20 contract
@@ -33,8 +36,8 @@ describe("ZDAO", function () {
     const minDelay = 1; // Min delay in seconds
 
     // Explicitly type 'proposers' and 'executors' as 'string[]'
-    const proposers: string[] = []; // Initially empty
-    const executors: string[] = []; // Initially empty
+    const proposers : Array<string> = []; // Initially empty
+    const executors : Array<string> = []; // Initially empty
     const admin = ownerAddr;
 
     const timelock = await TimelockController.deploy(
@@ -73,7 +76,7 @@ describe("ZDAO", function () {
       votingPeriod,  // Voting period
       proposalThreshold,  // Proposal threshold
       quorum,  // Quorum percentage
-      voteExtension //Prevents late quorum
+      voteExtension // Prevents late quorum
     );
     const zDAOAddr = await zDAO.getAddress();
 
@@ -270,5 +273,4 @@ describe("ZDAO", function () {
       expect(await nft.ownerOf(3)).to.equal(addr1);
     });
   });
-
 });
