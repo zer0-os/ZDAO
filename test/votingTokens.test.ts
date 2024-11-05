@@ -1,177 +1,107 @@
 import { ethers } from "hardhat";
-import { expect, version } from "chai";
+import { expect } from "chai";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import {
-  ERC20,
-  ERC20__factory,
-  ERC721,
-  ERC721__factory,
   MockERC20Votes,
-  MockERC20Votes__factory,
   MockERC721Votes,
-  MockERC721Votes__factory,
 } from "../typechain-types";
 
-interface ContractInfo {
-  tokenName : string;
-  tokenSymbol : string;
-  isERC20 : boolean;
-  version ?: string;
-}
+let owner : HardhatEthersSigner;
+let addr1 : HardhatEthersSigner;
+let addr2 : HardhatEthersSigner;
 
-// mocks inherit voting contracts and have only #mint method, so we use them for tests
-const contracts : Array<ContractInfo> = [
-  { tokenName: "MockERC20Votes", tokenSymbol: "ZV", isERC20: true },
-  { tokenName: "MockERC721Votes", tokenSymbol: "ZVNFT", isERC20: false, version: "1.0" },
-];
+let erc20Token : MockERC20Votes;
+let erc721Token : MockERC721Votes;
 
-// making forEach here to run similar tests for both standarts (ERC20 and NFT)
-contracts.forEach(({ tokenName, tokenSymbol, isERC20 }) => {
-  describe(`${isERC20 ? "ERC20 Voting" : "ERC721 Voting"} Tests`, () => {
-    let votingToken : MockERC20Votes | MockERC721Votes;
-    let VotingFactory : MockERC20Votes__factory | MockERC721Votes__factory;
+const erc20Name = "MockERC20Votes";
+const erc20Symbol = "ZV";
 
-    let owner : HardhatEthersSigner;
-    let addr1 : HardhatEthersSigner;
-    let addr2 : HardhatEthersSigner;
+const erc721Name = "MockERC721Votes";
+const erc721Symbol = "ZVNFT";
 
-    const mintAmount = ethers.parseEther("150");
-    const burnAmount = ethers.parseEther("100");
-    const transferAmount = ethers.parseEther("50");
-    const tokenId = 1;
+const mintAmount = ethers.parseEther("150");
+const burnAmount = ethers.parseEther("100");
+const transferAmount = ethers.parseEther("50");
+const tokenId = 1;
 
-    before(async () => {
-      VotingFactory = await ethers.getContractFactory(tokenName) as MockERC20Votes__factory | MockERC721Votes__factory;
-      [owner, addr1, addr2] = await ethers.getSigners();
+before(async () => {
+  [owner, addr1, addr2] = await ethers.getSigners();
 
-      votingToken = isERC20
-        ? await (VotingFactory as ERC20__factory).deploy(tokenName, tokenSymbol, owner)
-        : await (VotingFactory as ERC721__factory).deploy(tokenName, tokenSymbol, version);
+  // ERC20 deploy
+  const ERC20Factory = await ethers.getContractFactory(erc20Name) ;
+  erc20Token = await ERC20Factory.deploy(erc20Name, erc20Symbol, owner);
+  await erc20Token.waitForDeployment();
 
-      await votingToken.waitForDeployment();
+  await erc20Token.connect(owner).mint(owner.address, ethers.parseEther("1000"));
+  await erc20Token.connect(owner).transfer(addr1.address, ethers.parseEther("100"));
+  await erc20Token.connect(owner).transfer(addr2.address, ethers.parseEther("50"));
 
-      if (isERC20) {
-        await votingToken.connect(owner).mint(owner.address, ethers.parseEther("1000"));
-        await (votingToken as ERC20).connect(owner).transfer(addr1.address, ethers.parseEther("100"));
-        await (votingToken as ERC20).connect(owner).transfer(addr2.address, ethers.parseEther("50"));
-      } else {
-        await (votingToken as ERC721).connect(owner).mint(owner.address, tokenId);
-        await (votingToken as ERC721).connect(owner).mint(addr1.address, tokenId + 1);
-      }
-    });
+  // ERC721 deploy
+  const ERC721Factory = await ethers.getContractFactory(erc721Name) ;
+  erc721Token = await ERC721Factory.deploy(erc721Name, erc721Symbol, "1.0");
+  await erc721Token.waitForDeployment();
 
-    it("Should correctly set name of contract and symbol", async () => {
-      expect(
-        await votingToken.name()
-      ).to.equal(
-        tokenName
-      );
-      expect(
-        await votingToken.symbol()
-      ).to.equal(
-        tokenSymbol
-      );
-    });
+  await erc721Token.connect(owner).mint(owner.address, tokenId);
+  await erc721Token.connect(owner).mint(addr1.address, tokenId + 1);
+});
 
-    it.skip("Should allow owner to mint tokens", async () => {
-      if (isERC20) {
-        const balBefore = await (votingToken as ERC20).balanceOf(addr2.address);
+describe("ERC20 Voting Tests", () => {
+  it("Should correctly set name and symbol for ERC20 token", async () => {
+    expect(await erc20Token.name()).to.equal(erc20Name);
+    expect(await erc20Token.symbol()).to.equal(erc20Symbol);
+  });
 
-        expect(
-          await (votingToken as ERC20).balanceOf(addr2.address)
-        ).to.equal(
-          balBefore
-        );
-      } else {
-        const newTokenId = tokenId + 2;
-        await (votingToken as ERC721).connect(owner).mint(addr1.address, newTokenId);
+  it("Should delegate votes for ERC20 token", async () => {
+    const balanceBefore = await erc20Token.balanceOf(owner.address);
 
-        expect(
-          await (votingToken as ERC721).ownerOf(newTokenId)
-        ).to.equal(
-          addr1.address
-        );
-      }
-    });
+    await erc20Token.connect(owner).delegate(owner.address);
+    const votes = await erc20Token.getVotes(owner.address);
+    expect(votes).to.eq(balanceBefore);
+  });
 
-    it.skip("Should not allow non-owner to mint tokens", async () => {
-      if (isERC20) {
-        await expect(
-          (votingToken as ERC20).connect(addr1).mint(addr1.address, mintAmount)
-        ).to.be.revertedWith(
-          "Ownable: caller is not the owner"
-        );
-      }
-    });
+  it("Should correctly update votes after TRANSFER for ERC20 token", async () => {
+    const balanceBefore = await erc20Token.balanceOf(addr1.address);
+    await erc20Token.connect(addr1).delegate(addr1.address);
+    const votesBefore = await erc20Token.getVotes(addr1.address);
 
-    it("Should delegate votes", async () => {
-      const balBefore = await (votingToken as ERC20).balanceOf(owner.address);
+    expect(votesBefore).to.equal(balanceBefore);
 
-      await votingToken.connect(owner).delegate(owner.address);
+    await erc20Token.connect(addr1).transfer(addr2.address, transferAmount);
+    const votesAfterTransfer = await erc20Token.getVotes(addr1.address);
 
-      const votes = await votingToken.getVotes(owner.address);
-      expect(
-        votes
-      ).to.eq(
-        balBefore
-      );
-    });
+    expect(votesAfterTransfer).to.equal(balanceBefore - transferAmount);
+  });
 
-    if (isERC20) {
-      it("Should correctly update votes after TRANSFER", async () => {
-        const balBefore = await (votingToken as ERC20).balanceOf(addr1.address);
+  it("Should correctly update votes after BURN for ERC20 token", async () => {
+    await erc20Token.connect(owner).mint(addr1.address, mintAmount);
+    const balanceBefore = await erc20Token.balanceOf(addr1.address);
 
-        await (votingToken as ERC20).connect(addr1).delegate(addr1.address);
-        const addr1Votes = await (votingToken as ERC20).getVotes(addr1.address);
+    await erc20Token.connect(addr1).burn(addr1.address, burnAmount);
+    const votesAfterBurn = await erc20Token.getVotes(addr1.address);
 
-        expect(
-          addr1Votes
-        ).to.equal(
-          balBefore
-        );
+    expect(votesAfterBurn).to.equal(balanceBefore - burnAmount);
+  });
+});
 
-        // making transfer
-        await (votingToken as ERC20).connect(addr1).transfer(addr2.address, transferAmount);
-        const addr1VotesAfterTransfer = await (votingToken as ERC20).getVotes(addr1.address);
+describe("ERC721 Voting Tests", () => {
+  it("Should correctly set name and symbol for ERC721 token", async () => {
+    expect(await erc721Token.name()).to.equal(erc721Name);
+    expect(await erc721Token.symbol()).to.equal(erc721Symbol);
+  });
 
-        expect(
-          addr1VotesAfterTransfer
-        ).to.equal(
-          balBefore - transferAmount
-        );
-      });
+  it("Should delegate votes for ERC721 token", async () => {
+    const votesBefore = 1n;
+    await erc721Token.connect(owner).delegate(owner.address);
+    const votes = await erc721Token.getVotes(owner.address);
+    expect(votes).to.eq(votesBefore);
+  });
 
-      it("Should correctly update votes after BURN", async () => {
-        // making another mint, because wallet doesn'thave enough tokens
-        await (votingToken as ERC20).connect(owner).mint(addr1.address, mintAmount);
-        const balBefore = await (votingToken as ERC20).balanceOf(addr1.address);
+  it("Should update votes after transferring NFT for ERC721 token", async () => {
+    const votesBefore = await erc721Token.getVotes(owner.address);
 
-        // burn
-        await (votingToken as ERC20).connect(addr1).burn(addr1.address, burnAmount);
-        const addr1VotesAfterBurn = await (votingToken as ERC20).getVotes(addr1.address);
+    await erc721Token.connect(owner).transferFrom(owner.address, addr1.address, tokenId);
+    const votesAfter = await erc721Token.getVotes(owner.address);
 
-        expect(
-          addr1VotesAfterBurn
-        ).to.equal(
-          balBefore - burnAmount
-        );
-      });
-    } else {
-      it("ERC721 Should update votes after transferring NFT", async () => {
-        // 1 NFT = 1 vote
-        const votesPerToken = 1n;
-        const votesBefore = await votingToken.getVotes(owner.address);
-
-        // making transfer
-        await (votingToken as ERC721).connect(owner).transferFrom(owner.address, addr1.address, tokenId);
-        const votesAfter = await votingToken.getVotes(owner.address);
-
-        expect(
-          votesAfter
-        ).to.eq(
-          votesBefore - votesPerToken
-        );
-      });
-    }
+    expect(votesAfter).to.eq(votesBefore - 1n);
   });
 });
