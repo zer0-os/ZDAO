@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./IZeroVotingERC20.sol";
 
 /**
 * Throw this error if someone submits a zero token burn address.
@@ -12,46 +14,48 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 */
 error InvalidBurnAddress(address to);
 
-contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, Ownable {
+contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, AccessControl, IZeroVotingERC20 {
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
      /**
      * @dev Initializes the token with name and symbol, also sets up ERC20Permit and ownership.
-     *
      * @param name The name of the ERC20 token.
      * @param symbol The symbol of the ERC20 token.
      */
     constructor(
         string memory name,
-        string memory symbol
+        string memory symbol,
+        address deployer
     )
         ERC20(name, symbol) 
         ERC20Permit(name)
-        Ownable() 
-    {}
+        AccessControl()
+    {
+        // temporary TODO: decide, who gets the roles
+        grantRole(BURNER_ROLE, deployer);
+        grantRole(MINTER_ROLE, deployer);
+    }
 
     /**
-     * @dev Burns a specific amount of tokens from the specified account.
-     *
-     * @param account The address from which tokens will be burned.
-     * @param amount The amount of tokens to burn from the specified account.
+     * @dev External burn function. Burns a specified amount of tokens from the sender account.
+     * @param account Account where tokens need to be burned.
+     * @param amount The amount of tokens to burn.
      */
-
-    // TODO: add access control!!
     function burn(
         address account,
         uint256 amount
-    ) public {
+    ) external onlyRole(BURNER_ROLE) {
         _burn(
             account,
-            amount
+            amount   
         );
     }
 
     /**
      * @dev Internal burn function overriding ERC20 and ERC20Votes.
-     * Burns a specified amount of tokens from a specified account.
-     *
-     * @param account The address from which tokens will be burned.
+     * @param account Account where tokens need to be burned.
      * @param amount The amount of tokens to burn.
      */
     function _burn(
@@ -65,15 +69,25 @@ contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, Ownable {
     }
 
     /**
-     * @dev Internal mint function overriding ERC20 and ERC20Votes.
-     * Mints a specified amount of tokens to a specified account.
-     *
+     * @dev External mint function. Mints a specified amount of tokens to a specified account.
      * @param account The address that will receive the minted tokens.
      * @param amount The amount of tokens to mint to the specified account.
      */
+    function mint(
+        address account,
+        uint256 amount
+    ) external onlyRole(MINTER_ROLE) {
+        _mint(
+            account,
+            amount
+        );
+    }
 
-    // TODO: add access control
-    // 1. How to make mint? Who'll be able to mint?
+    /**
+     * @dev Internal mint function overriding ERC20 and ERC20Votes.
+     * @param account The address that will receive the minted tokens.
+     * @param amount The amount of tokens to mint to the specified account.
+     */
     function _mint(
         address account,
         uint256 amount
@@ -84,9 +98,26 @@ contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, Ownable {
         );
     }
 
+    // /**
+    //  * @dev Handles actions to be performed after token transfers.
+    //  * @param from The address sending the tokens.
+    //  * @param to The address receiving the tokens.
+    //  * @param amount The amount of tokens being transferred.
+    //  */
+    // function afterTokenTransfer(
+    //     address from,
+    //     address to,
+    //     uint256 amount
+    // ) external {
+    //     _afterTokenTransfer(
+    //         from,
+    //         to,
+    //         amount
+    //     );
+    // }
+
     /**
-     * @dev Handles actions to be performed after token transfers, overriding ERC20 and ERC20Votes.
-     *
+     * @dev Internal function afterTokenTransfer overriding ERC20 and ERC20Votes.
      * @param from The address sending the tokens.
      * @param to The address receiving the tokens.
      * @param amount The amount of tokens being transferred.

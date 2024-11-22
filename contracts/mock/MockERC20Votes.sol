@@ -7,16 +7,9 @@ contract MockERC20Votes is ZeroVotingERC20 {
     // Test token, don't deploy
     constructor(
         string memory name,
-        string memory symbol
+        string memory symbol,
+        address deployer
     )
-        ZeroVotingERC20(name, symbol)
+        ZeroVotingERC20(name, symbol, deployer)
     {}
-
-    // Mint function with onlyOwner modifier
-    function mint(
-        address to,
-        uint256 amount
-    ) public onlyOwner {
-        _mint(to, amount);
-    }
 }
