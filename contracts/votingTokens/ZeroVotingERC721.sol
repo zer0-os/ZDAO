@@ -9,6 +9,7 @@ import "./IZeroVotingERC721.sol";
 
 contract ZeroVotingERC721 is ERC721Votes, AccessControl, IZeroVotingERC721 {
 
+    bytes32 public constant DEFAULT_ADMIN_ROLE_PUBLIC = DEFAULT_ADMIN_ROLE;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 

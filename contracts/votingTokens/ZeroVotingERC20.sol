@@ -16,6 +16,7 @@ error InvalidBurnAddress(address to);
 
 contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, AccessControl, IZeroVotingERC20 {
 
+    bytes32 public constant DEFAULT_ADMIN_ROLE_PUBLIC = DEFAULT_ADMIN_ROLE;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
