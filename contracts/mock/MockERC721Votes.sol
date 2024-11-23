@@ -13,16 +13,9 @@ contract MockERC721Votes is ZeroVotingERC721 {
     constructor(
         string memory name,
         string memory symbol,
-        string memory version
+        string memory version,
+        address deployer
     ) 
-        ZeroVotingERC721 (name, symbol, version)
+        ZeroVotingERC721 (name, symbol, version, deployer)
     {}
-
-    /**
-     * @dev Mint a new token to a specific address.
-     * @param to The address to mint the token to.
-     */
-    function mint(address to, uint id) external onlyOwner {
-        _safeMint(to, id);
-    }
 }

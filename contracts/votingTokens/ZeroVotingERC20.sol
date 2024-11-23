@@ -34,8 +34,9 @@ contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, AccessControl, IZero
         AccessControl()
     {
         // temporary TODO: decide, who gets the roles
-        grantRole(BURNER_ROLE, deployer);
-        grantRole(MINTER_ROLE, deployer);
+        _setupRole(DEFAULT_ADMIN_ROLE, deployer);
+        _setupRole(BURNER_ROLE, deployer);
+        _setupRole(MINTER_ROLE, deployer);
     }
 
     /**
@@ -97,24 +98,6 @@ contract ZeroVotingERC20 is ERC20, ERC20Permit, ERC20Votes, AccessControl, IZero
             amount
         );
     }
-
-    // /**
-    //  * @dev Handles actions to be performed after token transfers.
-    //  * @param from The address sending the tokens.
-    //  * @param to The address receiving the tokens.
-    //  * @param amount The amount of tokens being transferred.
-    //  */
-    // function afterTokenTransfer(
-    //     address from,
-    //     address to,
-    //     uint256 amount
-    // ) external {
-    //     _afterTokenTransfer(
-    //         from,
-    //         to,
-    //         amount
-    //     );
-    // }
 
     /**
      * @dev Internal function afterTokenTransfer overriding ERC20 and ERC20Votes.

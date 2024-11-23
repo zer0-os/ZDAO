@@ -30,8 +30,9 @@ contract ZeroVotingERC721 is ERC721Votes, AccessControl, IZeroVotingERC721 {
         AccessControl()
     {
         // temporary TODO: decide, who gets the roles
-        grantRole(BURNER_ROLE, deployer);
-        grantRole(MINTER_ROLE, deployer);
+        _setupRole(DEFAULT_ADMIN_ROLE, deployer);
+        _setupRole(BURNER_ROLE, deployer);
+        _setupRole(MINTER_ROLE, deployer);
     }
 
     /**
@@ -42,7 +43,7 @@ contract ZeroVotingERC721 is ERC721Votes, AccessControl, IZeroVotingERC721 {
     function mint(
         address to,
         uint256 tokenId
-    ) external override onlyRole(MINTER_ROLE) {
+    ) external onlyRole(MINTER_ROLE) {
         _mint(to, tokenId);
     }
 
@@ -64,7 +65,7 @@ contract ZeroVotingERC721 is ERC721Votes, AccessControl, IZeroVotingERC721 {
      */
     function burn(
         uint256 tokenId
-    ) external override onlyRole(BURNER_ROLE) {
+    ) external onlyRole(BURNER_ROLE) {
         _burn(tokenId);
     }
 
