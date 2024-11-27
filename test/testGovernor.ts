@@ -4,6 +4,7 @@ import {
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { mineBlocks } from "./helpers/commonFunctions";
+import { BURNER_ROLE, DEFAULT_ADMIN_ROLE, MINTER_ROLE } from "./helpers/constants";
 
 
 describe("ZDAO", function () {
@@ -22,13 +23,14 @@ describe("ZDAO", function () {
     const nft = await nftFactory.deploy(
       contractName,
       contractSymbol,
-      contractVersion
+      contractVersion,
+      owner
     );
     const nftAddr = await nft.getAddress();
 
     // Deploy the ERC20 contract
     const erc20Factory = await ethers.getContractFactory("MockERC20Votes");
-    const erc20 = await erc20Factory.deploy("name", "symbol");
+    const erc20 = await erc20Factory.deploy("name", "symbol", owner);
     const erc20Addr = await erc20.getAddress();
 
     // Deploy the TimelockController contract
@@ -57,7 +59,8 @@ describe("ZDAO", function () {
     await nft.connect(owner).delegate(ownerAddr);
 
     // Transfer ownership of the NFT contract to the TimelockController
-    await nft.transferOwnership(timelockAddr);
+    await nft.grantRole(DEFAULT_ADMIN_ROLE, timelockAddr);
+    await nft.grantRole(MINTER_ROLE, timelockAddr);
 
     // Deploy the ZDAO contract with updated parameters
     const zDAOFactory = await ethers.getContractFactory("ZDAO");

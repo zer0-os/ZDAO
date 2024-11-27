@@ -5,7 +5,12 @@ import {
   MockERC20Votes,
   MockERC721Votes,
 } from "../typechain-types";
-import { expectRevertWhenNonAdminCallsMethod } from "./helpers/commonFunctions";
+import { getAccessRevertMsg } from "./helpers/commonFunctions";
+import {
+  BURNER_ROLE,
+  DEFAULT_ADMIN_ROLE,
+  MINTER_ROLE,
+} from "./helpers/constants";
 
 let owner : HardhatEthersSigner;
 let addr1 : HardhatEthersSigner;
@@ -25,7 +30,6 @@ const burnAmount = ethers.parseEther("100");
 const transferAmount = ethers.parseEther("50");
 const tokenId = 1;
 
-const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 before(async () => {
   [owner, addr1, addr2] = await ethers.getSigners();
@@ -106,7 +110,104 @@ describe("ERC20 Voting Tests", () => {
     });
   });
 
-  describe("Access control", () => {});
+  describe("Access control", () => {
+    it("Should revert when NON-ADMIN grants role", async () => {
+      await expect(
+        erc20Token.connect(addr2).grantRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr2.address, DEFAULT_ADMIN_ROLE)
+      );
+    });
+
+    it("Should revert when NON-ADMIN calls #revokeRole", async () => {
+      await expect(
+        erc20Token.connect(addr2).revokeRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr2.address, DEFAULT_ADMIN_ROLE)
+      );
+    });
+
+    it("Should revert when NON-MINTER mints tokens", async () => {
+      await expect(
+        erc20Token.connect(addr2).mint(addr1.address, 2000)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr2.address, MINTER_ROLE)
+      );
+    });
+
+    it("Should revert when NON-BURNER burns tokens", async () => {
+      await expect(
+        erc20Token.connect(addr1).burn(addr1, 2000)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr1.address, BURNER_ROLE)
+      );
+    });
+
+    // POSITIVE
+    it("The OWNER should be allowed to perform the #grantRole", async () => {
+      // grant addr2 admin_role for next test
+      const admins = [addr1.address, addr2.address];
+
+      for (const newAdmin of admins) {
+        await expect(
+          erc20Token.connect(owner).grantRole(DEFAULT_ADMIN_ROLE, newAdmin)
+        ).to.emit(
+          erc20Token,
+          "RoleGranted"
+        ).withArgs(
+          DEFAULT_ADMIN_ROLE,
+          newAdmin,
+          owner.address
+        );
+
+        // check event
+        expect(
+          await erc20Token.hasRole(DEFAULT_ADMIN_ROLE, newAdmin)
+        ).to.eq(
+          true
+        );
+      }
+    });
+
+    it("Should allow revocation of ADMIN_ROLE role to YOURSELF", async () => {
+      await expect(
+        erc20Token.connect(addr2).revokeRole(DEFAULT_ADMIN_ROLE, addr2.address)
+      ).to.emit(
+        erc20Token,
+        "RoleRevoked"
+      ).withArgs(
+        DEFAULT_ADMIN_ROLE,
+        addr2.address,
+        addr2.address
+      );
+
+      expect(
+        await erc20Token.hasRole(DEFAULT_ADMIN_ROLE, addr2.address)
+      ).to.eq(
+        false
+      );
+    });
+
+    it("The OWNER should be allowed to perform the #revokeRole", async () => {
+      // check event
+      await expect(
+        erc20Token.revokeRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.emit(
+        erc20Token,
+        "RoleRevoked"
+      ).withArgs(
+        DEFAULT_ADMIN_ROLE,
+        addr1.address,
+        owner.address
+      );
+
+      expect(
+        await erc20Token.hasRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.eq(
+        false
+      );
+    });
+  });
 });
 
 describe("ERC721 Voting Tests", () => {
@@ -175,48 +276,102 @@ describe("ERC721 Voting Tests", () => {
     });
   });
 
-  describe.only("Access control", () => {
-    const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
-    const BURNER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("BURNER_ROLE"));
-
+  describe("Access control", () => {
     it("Should revert when NON-ADMIN grants role", async () => {
-      await expectRevertWhenNonAdminCallsMethod({
-        account: addr2,
-        token: erc721Token,
-        method: "grantRole",
-        params: [MINTER_ROLE, addr1.address],
-        expectedErrorRole: DEFAULT_ADMIN_ROLE,
-      });
+      await expect(
+        erc721Token.connect(addr2).grantRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr2.address, DEFAULT_ADMIN_ROLE)
+      );
     });
 
     it("Should revert when NON-ADMIN calls #revokeRole", async () => {
-      await expectRevertWhenNonAdminCallsMethod({
-        account: addr2,
-        token: erc721Token,
-        method: "revokeRole",
-        params: [MINTER_ROLE, addr1.address],
-        expectedErrorRole: DEFAULT_ADMIN_ROLE,
-      });
+      await expect(
+        erc721Token.connect(addr2).revokeRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr2.address, DEFAULT_ADMIN_ROLE)
+      );
     });
 
     it("Should revert when NON-MINTER mints tokens", async () => {
-      await expectRevertWhenNonAdminCallsMethod({
-        account: addr2,
-        token: erc721Token,
-        method: "mint",
-        params: [addr1.address, "99999"],
-        expectedErrorRole: MINTER_ROLE,
-      });
+      await expect(
+        erc721Token.connect(addr2).mint(addr1.address, "99999")
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr2.address, MINTER_ROLE)
+      );
     });
 
     it("Should revert when NON-BURNER burns tokens", async () => {
-      await expectRevertWhenNonAdminCallsMethod({
-        account: addr2,
-        token: erc721Token,
-        method: "burn",
-        params: ["99999"],
-        expectedErrorRole: BURNER_ROLE,
-      });
+      await expect(
+        erc721Token.connect(addr1).burn(3)
+      ).to.be.revertedWith(
+        getAccessRevertMsg(addr1.address, BURNER_ROLE)
+      );
+    });
+
+    // POSITIVE
+    it("The OWNER should be allowed to perform the #grantRole", async () => {
+      // grant addr2 admin_role for next test
+      const admins = [addr1.address, addr2.address];
+
+      for (const newAdmin of admins) {
+        await expect(
+          erc721Token.connect(owner).grantRole(DEFAULT_ADMIN_ROLE, newAdmin)
+        ).to.emit(
+          erc721Token,
+          "RoleGranted"
+        ).withArgs(
+          DEFAULT_ADMIN_ROLE,
+          newAdmin,
+          owner.address
+        );
+
+        // check event
+        expect(
+          await erc721Token.hasRole(DEFAULT_ADMIN_ROLE, newAdmin)
+        ).to.eq(
+          true
+        );
+      }
+    });
+
+    it("Should allow revocation of ADMIN_ROLE role to YOURSELF", async () => {
+      await expect(
+        erc721Token.connect(addr2).revokeRole(DEFAULT_ADMIN_ROLE, addr2.address)
+      ).to.emit(
+        erc721Token,
+        "RoleRevoked"
+      ).withArgs(
+        DEFAULT_ADMIN_ROLE,
+        addr2.address,
+        addr2.address
+      );
+
+      expect(
+        await erc721Token.hasRole(DEFAULT_ADMIN_ROLE, addr2.address)
+      ).to.eq(
+        false
+      );
+    });
+
+    it("The OWNER should be allowed to perform the #revokeRole", async () => {
+      // check event
+      await expect(
+        erc721Token.revokeRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.emit(
+        erc721Token,
+        "RoleRevoked"
+      ).withArgs(
+        DEFAULT_ADMIN_ROLE,
+        addr1.address,
+        owner.address
+      );
+
+      expect(
+        await erc721Token.hasRole(DEFAULT_ADMIN_ROLE, addr1.address)
+      ).to.eq(
+        false
+      );
     });
   });
 });
