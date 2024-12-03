@@ -8,11 +8,13 @@ import {
   TimelockController,
   ZDAO,
 } from "../typechain-types";
+import { MINTER_ROLE } from "./helpers/constants";
 
 
-describe.only("Governance Flow Test - Advanced", () => {
+describe("Governance Flow Test - Advanced", () => {
   let governance : ZDAO;
-  let token : MockERC20Votes | MockERC721Votes;
+  let token : MockERC20Votes;
+  let token2 : MockERC721Votes;
   let timelock : TimelockController;
 
   let owner : HardhatEthersSigner;
@@ -21,6 +23,7 @@ describe.only("Governance Flow Test - Advanced", () => {
   let voter2 : HardhatEthersSigner;
 
   let tokenAddr : string;
+  let token2Addr : string;
 
   before(async () => {
     [
@@ -34,9 +37,15 @@ describe.only("Governance Flow Test - Advanced", () => {
     token = await Token.deploy("Governance Token", "GT", owner);
     await token.waitForDeployment();
 
+    const Token2 = await ethers.getContractFactory("MockERC721Votes");
+    token2 = await Token2.deploy("Governance Token 2", "GT2", "1.0", owner);
+    await token2.waitForDeployment();
+
     await token.connect(owner).mint(proposer.address, ethers.parseUnits("1000"));
     await token.connect(owner).mint(voter1.address, ethers.parseUnits("500"));
     await token.connect(owner).mint(voter2.address, ethers.parseUnits("500"));
+
+    await token2.connect(owner).mint(voter2.address, "9");
 
     await token.connect(proposer).delegate(proposer.address);
     await token.connect(voter1).delegate(voter1.address);
@@ -50,8 +59,10 @@ describe.only("Governance Flow Test - Advanced", () => {
     timelock = await TimelockC.deploy(minDelay, proposers, executors, owner.address);
     await timelock.waitForDeployment();
 
-    const Governance = await ethers.getContractFactory("ZDAO");
     tokenAddr = await token.getAddress();
+    token2Addr = await token2.getAddress();
+
+    const Governance = await ethers.getContractFactory("ZDAO");
 
     governance = await Governance.deploy(
       "Governance DAO",
@@ -65,9 +76,11 @@ describe.only("Governance Flow Test - Advanced", () => {
     );
     await governance.waitForDeployment();
 
-    await timelock.connect(owner).grantRole(await timelock.PROPOSER_ROLE(), proposer.address);
-    await timelock.connect(owner).grantRole(await timelock.EXECUTOR_ROLE(), proposer.address);
     await timelock.connect(owner).grantRole(await timelock.PROPOSER_ROLE(), await governance.getAddress());
+    await timelock.connect(owner).grantRole(await timelock.EXECUTOR_ROLE(), await governance.getAddress());
+
+    await token.connect(owner).grantRole(MINTER_ROLE, await timelock.getAddress());
+    await token2.connect(owner).grantRole(MINTER_ROLE, await timelock.getAddress());
   });
 
   describe("ERC20 Voting Tests", () => {
@@ -108,10 +121,11 @@ describe.only("Governance Flow Test - Advanced", () => {
       await governance.connect(proposer).execute(targets, values, calldatas, descriptionHash);
 
       const finalBalance = await token.balanceOf(proposer.address);
+      // 1000 was before mint and then mints 100 more.
       expect(finalBalance).to.equal(ethers.parseUnits("1100"));
     });
 
-    it("Other vote, while one porpose executes", async () => {
+    it("Other vote, while one propose executes", async () => {
       const proposal1Amount = ethers.parseUnits("50");
       const proposal2Amount = ethers.parseUnits("75");
 
@@ -187,6 +201,7 @@ describe.only("Governance Flow Test - Advanced", () => {
 
       await ethers.provider.send("evm_increaseTime", [3600]);
       await ethers.provider.send("evm_mine", []);
+
       await governance.connect(proposer).execute(
         proposal1Targets,
         proposal1Values,
@@ -200,80 +215,160 @@ describe.only("Governance Flow Test - Advanced", () => {
         proposal2DescriptionHash
       );
 
-      expect(await token.balanceOf(voter1.address)).to.equal(ethers.parseUnits("550"));
-      expect(await token.balanceOf(voter2.address)).to.equal(ethers.parseUnits("575"));
+      // = start balance - `proposal${n}Amount`
+      expect(
+        await token.balanceOf(voter1.address)
+      ).to.equal(
+        ethers.parseUnits("550")
+      );
+
+      expect(
+        await token.balanceOf(voter2.address)
+      ).to.equal(
+        ethers.parseUnits("575")
+      );
+    });
+  });
+
+  describe("ERC721 Voting Tests", () => {
+    it("Many users vote (+ and -)", async () => {
+      const startBalance = await token2.balanceOf(proposer.address);
+
+      const tokenId = 99;
+      const targets = [token2Addr];
+      const values = [0];
+      const calldatas = [
+        token2.interface.encodeFunctionData("mint", [proposer.address, tokenId]),
+      ];
+      const description = "Mint additional token ID to proposer";
+
+      await governance.connect(proposer).propose(targets, values, calldatas, description);
+
+      const descriptionHash = ethers.keccak256(ethers.toUtf8Bytes(description));
+      const proposalId = await governance.hashProposal(targets, values, calldatas, descriptionHash);
+
+      await mineBlocks(2);
+
+      await governance.connect(proposer).castVote(proposalId, 1);
+      await governance.connect(voter1).castVote(proposalId, 1);
+      await governance.connect(voter2).castVote(proposalId, 0);
+
+      await mineBlocks(5);
+
+      const state = await governance.state(proposalId);
+      expect(state).to.equal(4);
+
+      await governance.connect(proposer).queue(targets, values, calldatas, descriptionHash);
+
+      await ethers.provider.send("evm_increaseTime", [3600]);
+      await ethers.provider.send("evm_mine", []);
+      await governance.connect(proposer).execute(targets, values, calldatas, descriptionHash);
+
+      const finalBalance = await token2.balanceOf(proposer.address);
+      expect(finalBalance).to.equal(startBalance + 1n);
     });
 
-    // it("Should allow a token holder (ERC20) to propose minting and execute the proposal", async () => {
-    //   await token.mint(owner.address, 1000);
-    //   await token.connect(owner).delegate(owner.address);
+    it("Other vote, while one proposal executes", async () => {
+      const startBalance = await token2.balanceOf(voter1.address);
+      const startBalance2 = await token2.balanceOf(voter2.address);
 
-    //   await mineBlocks(1);
+      const proposal1TokenId = 5;
+      const proposal2TokenId = 6;
 
-    //   const blockNumber = await ethers.provider.getBlockNumber();
-    //   const votingPower = await governance.getVotes(owner.address, blockNumber - 1);
+      const proposal1Targets = [token2Addr];
+      const proposal1Values = [0];
+      const proposal1Calldatas = [
+        token2.interface.encodeFunctionData("mint", [voter1.address, proposal1TokenId]),
+      ];
+      const proposal1Description = "Mint additional token to voter1";
 
-    //   // Ensure voting power is sufficient
-    //   expect(votingPower).to.be.gte(1);
+      const proposal2Targets = [token2Addr];
+      const proposal2Values = [0];
+      const proposal2Calldatas = [
+        token2.interface.encodeFunctionData("mint", [voter2.address, proposal2TokenId]),
+      ];
+      const proposal2Description = "Mint additional token to voter2";
 
-    //   // Propose a mint transaction (minting token ID 3 to addr1)
-    //   const targets = [nftAddr];
-    //   const values = [0];
-    //   const calldatas = [
-    //     nft.interface.encodeFunctionData("mint", [voter1, 3]),
-    //   ];
-    //   const description = "Mint token ID 3 to addr1";
+      await governance.connect(proposer).propose(
+        proposal1Targets,
+        proposal1Values,
+        proposal1Calldatas,
+        proposal1Description
+      );
+      await governance.connect(proposer).propose(
+        proposal2Targets,
+        proposal2Values,
+        proposal2Calldatas,
+        proposal2Description
+      );
 
-    //   // Connect as owner to propose
-    //   await governance.propose(targets, values, calldatas, description);
+      const proposal1DescriptionHash = ethers.keccak256(ethers.toUtf8Bytes(proposal1Description));
+      const proposal2DescriptionHash = ethers.keccak256(ethers.toUtf8Bytes(proposal2Description));
+      const proposal1Id = await governance.hashProposal(
+        proposal1Targets,
+        proposal1Values,
+        proposal1Calldatas,
+        proposal1DescriptionHash
+      );
 
-    //   // Get proposal ID
-    //   const proposalId = await governance.hashProposal(
-    //     targets,
-    //     values,
-    //     calldatas,
-    //     ethers.keccak256(new TextEncoder().encode(description))
-    //   );
+      const proposal2Id = await governance.hashProposal(
+        proposal2Targets,
+        proposal2Values,
+        proposal2Calldatas,
+        proposal2DescriptionHash
+      );
 
-    //   // Since voting delay is 1 block, mine blocks to move the proposal to Active
-    //   await mineBlocks(2);
+      await mineBlocks(2);
 
-    //   // Ensure the proposal is Active (state 1)
-    //   const proposalState = await governance.state(proposalId);
-    //   expect(proposalState).to.equal(1); // 1 = Active
+      await governance.connect(proposer).castVote(proposal1Id, 1);
+      await governance.connect(voter1).castVote(proposal1Id, 1);
+      await governance.connect(voter2).castVote(proposal1Id, 0);
 
-    //   // Vote on the proposal
-    //   await governance.castVote(proposalId, 1); // 1 = For
+      await governance.connect(proposer).castVote(proposal2Id, 1);
+      await governance.connect(voter1).castVote(proposal2Id, 0);
+      await governance.connect(voter2).castVote(proposal2Id, 1);
 
-    //   // Mine blocks to move past the voting period
-    //   await mineBlocks(5);
+      await mineBlocks(5);
 
-    //   // Check if the proposal succeeded
-    //   const finalState = await governance.state(proposalId);
-    //   expect(finalState).to.equal(4); // 4 = Succeeded
+      expect(await governance.state(proposal1Id)).to.equal(4);
+      expect(await governance.state(proposal2Id)).to.equal(4);
 
-    //   // Queue the proposal in the timelock
-    //   await governance.connect(owner).queue(
-    //     targets,
-    //     values,
-    //     calldatas,
-    //     ethers.keccak256(new TextEncoder().encode(description))
-    //   );
+      await governance.connect(proposer).queue(
+        proposal1Targets,
+        proposal1Values,
+        proposal1Calldatas,
+        proposal1DescriptionHash
+      );
 
-    //   // Fast forward time to account for the timelock delay
-    //   await ethers.provider.send("evm_increaseTime", [3600]); // Fast forward by 1 hour
-    //   await ethers.provider.send("evm_mine", []);
+      await governance.connect(proposer).queue(
+        proposal2Targets,
+        proposal2Values,
+        proposal2Calldatas,
+        proposal2DescriptionHash
+      );
 
-    //   // Execute the proposal
-    //   await governance.connect(owner).execute(
-    //     targets,
-    //     values,
-    //     calldatas,
-    //     ethers.keccak256(new TextEncoder().encode(description))
-    //   );
+      await ethers.provider.send("evm_increaseTime", [3600]);
+      await ethers.provider.send("evm_mine", []);
 
-    //   // Verify the token was minted to addr1
-    //   expect(await nft.ownerOf(3)).to.equal(voter1);
-    // });
+      await governance.connect(proposer).execute(
+        proposal1Targets,
+        proposal1Values,
+        proposal1Calldatas,
+        proposal1DescriptionHash
+      );
+
+      await governance.connect(proposer).execute(
+        proposal2Targets,
+        proposal2Values,
+        proposal2Calldatas,
+        proposal2DescriptionHash
+      );
+
+      const finalBalance = await token2.balanceOf(voter1.address);
+      expect(finalBalance).to.equal(startBalance + 1n);
+
+      const finalBalance2 = await token2.balanceOf(voter2.address);
+      expect(finalBalance2).to.equal(startBalance2 + 1n);
+    });
   });
 });
