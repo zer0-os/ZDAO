@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "lint": "yarn lint-sol && yarn lint-ts --no-error-on-unmatched-pattern"
+  },
   "dependencies": {
     "@nomicfoundation/hardhat-ignition-ethers": "^0.15.5",
     "@openzeppelin/merkle-tree": "^1.0.7",
@@ -13,6 +18,10 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "@openzeppelin/contracts": "^4.8.3"
+    "@openzeppelin/contracts": "^4.8.3",
+    "@types/mocha": "^10.0.9",
+    "@zero-tech/eslint-config-cpt": "0.2.7",
+    "chai": "^4.3.10",
+    "typescript": "^5.6.3"
   }
 }

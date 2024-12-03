@@ -157,7 +157,7 @@ contract ZDAO is
         return super._executor();
     }
 
-     /**
+    /**
      * @notice Returns the proposal deadline in blocks.
      * @param proposalId The ID of the proposal.
      * @return The block number when voting ends.
@@ -195,7 +195,6 @@ contract ZDAO is
     {
         return super._castVote(proposalId, account, support, reason, params);
     }
-
 
     /**
      * @notice Checks if a given interface is supported.

@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Votes.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../votingTokens/ZeroVotingERC721.sol";
+
 
 /**
  * @title MockERC721Votes
  * @dev ERC721 token with governance voting capabilities using OpenZeppelin's ERC721Votes.
  */
-contract MockERC721Votes is ERC721Votes, Ownable {
+contract MockERC721Votes is ZeroVotingERC721 {
 
-    constructor() ERC721("MockERC721Votes", "M721V") EIP712("name", "version"){}
-
-    /**
-     * @dev Mint a new token to a specific address.
-     * @param to The address to mint the token to.
-     */
-    function mint(address to, uint id) external onlyOwner {
-        _safeMint(to, id);
-    }
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory version,
+        address deployer
+    ) 
+        ZeroVotingERC721 (name, symbol, version, deployer)
+    {}
 }
